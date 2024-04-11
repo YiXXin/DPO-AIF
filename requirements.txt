@@ -1,0 +1,10 @@
+accelerate
+diffusers
+transformers
+ftfy
+tensorboard
+Jinja2
+bitsandbytes
+xformers
+hpsv2
+openai_clip
