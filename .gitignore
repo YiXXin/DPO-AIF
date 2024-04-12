@@ -1,2 +1,3 @@
-tmp_sdxl/
-__pycache__/
+outputs/
+**/__pycache__
+hf_cache/

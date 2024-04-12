@@ -53,10 +53,10 @@ import pdb
 if is_wandb_available():
     import wandb
 
-import os
-os.environ['HUGGINGFACE_HUB_CACHE'] = '/data3/kewenwu/DiffusionDPO/huggingface/hub' 
-os.environ['HF_HOME'] = '/data3/kewenwu/DiffusionDPO/huggingface'
-os.environ['XDG_CACHE_HOME'] = '/data3/kewenwu/DiffusionDPO/' 
+# import os
+# os.environ['HUGGINGFACE_HUB_CACHE'] = '/data3/kewenwu/DiffusionDPO/huggingface/hub' 
+# os.environ['HF_HOME'] = '/data3/kewenwu/DiffusionDPO/huggingface'
+# os.environ['XDG_CACHE_HOME'] = '/data3/kewenwu/DiffusionDPO/' 
 
  
 ## SDXL
@@ -65,7 +65,7 @@ import gc
 from torchvision.transforms.functional import crop
 from transformers import AutoTokenizer, PretrainedConfig
 
-
+from ipdb import set_trace
 
 # Will error if the minimal version of diffusers is not installed. Remove at your own risks.
 check_min_version("0.20.0")
@@ -75,6 +75,7 @@ logger = get_logger(__name__, log_level="INFO")
 DATASET_NAME_MAPPING = {
     "yuvalkirstain/pickapic_v1": ("jpg_0", "jpg_1", "label_0", "caption"),
     "yuvalkirstain/pickapic_v2": ("jpg_0", "jpg_1", "label_0", "caption"),
+    "GenAI800": ("jpg_0", "jpg_1", "label_0", "caption"),
 }
 
         
@@ -691,7 +692,7 @@ def main():
     # In distributed training, the load_dataset function guarantees that only one local process can concurrently
     # download the dataset.
     #TODO:
-    dataset = datasets.load_from_disk("/data3/kewenwu/dpo_datasets")
+    dataset = datasets.load_from_disk(args.train_data_dir)
     # if args.dataset_name is not None:
     #     # Downloading and loading a dataset from the hub.
     #     dataset = load_dataset(
@@ -718,7 +719,7 @@ def main():
 
     # 6. Get the column names for input/target.
     dataset_columns = DATASET_NAME_MAPPING.get(args.dataset_name, None)
-    if 'pickapic' in args.dataset_name or (args.train_method == 'dpo'):
+    if 'pickapic' in args.dataset_name or ('GenAI' in args.dataset_name) or (args.train_method == 'dpo'):
         pass
     elif args.image_column is None:
         image_column = dataset_columns[0] if dataset_columns is not None else column_names[0]
@@ -804,13 +805,16 @@ def main():
                 return_d["caption"] = [example["caption"] for example in examples]
             else:
                 return_d["input_ids"] = torch.stack([example["input_ids"] for example in examples])
-                
+            
             if args.choice_model:
                 # If using AIF then deliver image data for choice model to determine if should flip pixel values
                 for k in ['jpg_0', 'jpg_1']:
                     return_d[k] = [Image.open(io.BytesIO( example[k])).convert("RGB")
                                    for example in examples]
-                return_d["caption"] = [example["caption"] for example in examples] 
+                return_d["caption"] = [example["caption"] for example in examples]
+                if args.choice_model == 'vqascore':
+                    for key in ['img0_path', 'img1_path']:
+                        return_d[key] = [example[key] for example in examples]
             return return_d
          
         if args.choice_model:
@@ -823,14 +827,19 @@ def main():
                 from utils.pickscore_utils import Selector
             elif args.choice_model == 'aes':
                 from utils.aes_utils import Selector
+            elif args.choice_model == 'vqascore':
+                from utils.vqascore_utils import Selector
             selector = Selector('cpu' if args.sdxl else accelerator.device)
 
             def do_flip(jpg0, jpg1, prompt):
                 scores = selector.score([jpg0, jpg1], prompt)
                 return scores[1] > scores[0]
-            def choice_model_says_flip(batch):
+            def choice_model_says_flip(args, batch):
                 assert len(batch['caption'])==1 # Can switch to iteration but not needed for nwo
-                return do_flip(batch['jpg_0'][0], batch['jpg_1'][0], batch['caption'][0])
+                if args.choice_model == 'vqascore':
+                    return do_flip(batch['img0_path'][0], batch['img1_path'][0], batch['caption'])
+                else:
+                    return do_flip(batch['jpg_0'][0], batch['jpg_1'][0], batch['caption'][0])
     elif args.train_method == 'sft':
         def preprocess_train(examples):
             if 'GenAI' in args.dataset_name:
@@ -840,8 +849,8 @@ def main():
                     assert label_0 in (0, 1)
                     im_bytes = im_0_bytes if label_0==1 else im_1_bytes
                     images.append(Image.open(io.BytesIO(im_bytes)).convert("RGB"))
-                print(images[0].shape)
-                exit()
+                # print(images[0].shape)
+                # exit()
             else:
                 images = [image.convert("RGB") for image in examples[image_column]]
             examples["pixel_values"] = [train_transforms(image) for image in images]
@@ -1012,6 +1021,7 @@ def main():
         implicit_acc_accumulated = 0.0
         for step, batch in enumerate(train_dataloader):
             # Skip steps until we reach the resumed step
+            # set_trace()
             if args.resume_from_checkpoint and epoch == first_epoch and step < resume_step and (not args.hard_skip_resume):
                 if step % args.gradient_accumulation_steps == 0:
                     print(f"Dummy processing step {step}, will start training at {resume_step}")
@@ -1019,12 +1029,12 @@ def main():
             with accelerator.accumulate(unet):
                 # Convert images to latent space
                 if args.train_method == 'dpo':
-                    # y_w and y_l were concatenated along channel dimension
+                    # y_w and y_l were concatenated along channel dimension, batch["pixel_values"].shape = [1, 6, 1024, 1024]
                     feed_pixel_values = torch.cat(batch["pixel_values"].chunk(2, dim=1))
                     # If using AIF then we haven't ranked yet so do so now
                     # Only implemented for BS=1 (assert-protected)
                     if args.choice_model:
-                        if choice_model_says_flip(batch):
+                        if choice_model_says_flip(args, batch):
                             feed_pixel_values = feed_pixel_values.flip(0)
                 elif args.train_method == 'sft':
                     feed_pixel_values = batch["pixel_values"]
