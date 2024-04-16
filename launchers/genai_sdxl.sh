@@ -18,7 +18,7 @@ CUDA_VISIBLE_DEVICES=2 accelerate launch train.py \
   --max_train_steps=1000 \
   --lr_scheduler="constant_with_warmup" --lr_warmup_steps=200 \
   --learning_rate=1e-8 --scale_lr \
-  --checkpointing_steps 200 \
+  --checkpointing_steps 100 \
   --beta_dpo 5000 \
   --sdxl  \
   --output_dir=$OUTPUT_DIR \
