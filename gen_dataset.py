@@ -21,7 +21,7 @@ def get_byte(path):
 def gen_pair():
     f = open('/data3/baiqil/github/t2v_metrics/datasets/GenAI_800/reranking/humanRating_800.json')
     data = json.load(f)
-    img_path = '/data3/baiqil/github/t2v_metrics/datasets/GenAI_800/reranking/SDXL_rerank'
+    img_path = '/data3/baiqil/github/t2v_metrics/datasets/GenAI_800/reranking/DALLE_rerank'
     num=0
     for str_i in data.keys():
         # str_i = f"{i:05d}"
@@ -51,7 +51,7 @@ def gen_pair():
 def gen_best():
     f = open('/data3/baiqil/github/t2v_metrics/datasets/GenAI_800/reranking/humanRating_800.json')
     data = json.load(f)
-    img_path = '/data3/baiqil/github/t2v_metrics/datasets/GenAI_800/reranking/SDXL_rerank'
+    img_path = '/data3/baiqil/github/t2v_metrics/datasets/GenAI_800/reranking/DALLE_rerank'
     num=0
     for str_i in data.keys():
         # str_i = f"{i:05d}"
