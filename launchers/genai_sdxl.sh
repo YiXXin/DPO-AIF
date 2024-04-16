@@ -1,14 +1,14 @@
 export MODEL_NAME="stabilityai/stable-diffusion-xl-base-1.0"
 export VAE="madebyollin/sdxl-vae-fp16-fix"
 export DATASET_NAME="GenAI800"
-export OUTPUT_DIR="./outputs/sdxl"
+export OUTPUT_DIR="./outputs/sdxl_vqa_xl"
 export DATASET_DIR="/data3/yixinf/dpo_datasets_800"
 # export HF_HOME="/data3/kewenwu/huggingface"
 
 # Effective BS will be (N_GPU * train_batch_size * gradient_accumulation_steps)
 # Paper used 2048. Training takes ~30 hours / 200 steps
 
-CUDA_VISIBLE_DEVICES=2 accelerate launch train.py \
+CUDA_VISIBLE_DEVICES=3 accelerate launch train.py \
   --pretrained_model_name_or_path=$MODEL_NAME \
   --pretrained_vae_model_name_or_path=$VAE \
   --dataset_name=$DATASET_NAME \

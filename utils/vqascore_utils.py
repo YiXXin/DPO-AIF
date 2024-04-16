@@ -7,7 +7,7 @@ class Selector():
     
     def __init__(self, device):
         self.device = device
-        self.model = t2v_metrics.VQAScore(model='clip-flant5-xxl')
+        self.model = t2v_metrics.VQAScore(model='clip-flant5-xl').to(device)
         
     def score(self, img_paths, prompt):
         scores = self.model(img_paths, prompt)
