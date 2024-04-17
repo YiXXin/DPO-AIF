@@ -8,7 +8,7 @@ from datasets import Dataset
 import numpy as np
 
 scores = torch.load('/data3/yixinf/GenAI800_rerank/t2v_metrics/reranking_results/DALLE3_results/clip-flant5-xxl_DALLE3_800_rerank.pt')
-img_path = '/data3/baiqil/github/t2v_metrics/datasets/GenAI_800/reranking/DALLE_rerank'
+img_path = '/ssd0/yixinf/ft_datasets/DALLE_rerank'
 scores = scores.reshape(-1,9)
 def get_byte(path):
     im = Image.open(path)
@@ -54,5 +54,5 @@ def gen():
        
 
 ds = Dataset.from_generator(gen)
-ds.save_to_disk("/ssd0/kewenwu/dpo_datasets_800_new")
+ds.save_to_disk("/ssd0/yixinf/dpo_datasets_800_vqa_label")
 
